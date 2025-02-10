@@ -51,23 +51,33 @@ async function main() {
   // Mettre à jour la configuration avec la nouvelle adresse
   network.contractAddress = raffleAddress;
   
-  // Sauvegarder la nouvelle configuration
-  const configPath = path.join(__dirname, "../../raffle-interface/config/networks.ts");
-  const configContent = `export interface NetworkConfig {
-    name: string;
-    rpcUrl: string;
-    wsUrl: string;
-    chainId: number;
-    contractAddress?: string;
-    explorerUrl: string;
-    symbol: string;
-    blockTime: number;
-  }
-
-  export const NETWORKS: { [key: string]: NetworkConfig } = ${JSON.stringify(NETWORKS, null, 2)};
-
-  export const DEFAULT_NETWORK = "${networkName}";
-  `;
+    // Sauvegarder la nouvelle configuration
+    const configPath = path.join(__dirname, "../../raffle-interface/config/networks.ts");
+    const configContent = `export interface NetworkConfig {
+      name: string;
+      rpcUrl: string;
+      wsUrl: string;
+      chainId: number;
+      contractAddress?: string;
+      explorerUrl: string;
+      symbol: string;
+      blockTime: number;
+    }
+  
+    // Fonction helper pour récupérer l'adresse du contrat
+    function getContractAddress(networkName: string, configuredAddress?: string): string {
+      // Priorité à la variable d'environnement
+      if (process.env.NEXT_PUBLIC_CONTRACT_ADDRESS) {
+        return process.env.NEXT_PUBLIC_CONTRACT_ADDRESS;
+      }
+      // Sinon utiliser l'adresse configurée
+      return configuredAddress || '';
+    }
+  
+    export const NETWORKS: { [key: string]: NetworkConfig } = ${JSON.stringify(NETWORKS, null, 2)};
+  
+    export const DEFAULT_NETWORK = "${networkName}";
+    `;
   
   fs.writeFileSync(configPath, configContent);
 
