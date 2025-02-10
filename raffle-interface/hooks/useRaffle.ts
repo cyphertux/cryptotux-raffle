@@ -73,6 +73,13 @@ export function useRaffle(network: NetworkConfig) {
 const updateState = async () => {
   if (loading && isExecuting) return;
 
+  // Si on a déjà les gagnants, on arrête le polling
+  if (winners.length > 0) {
+    setIsComplete(true);
+    setLoading(false);
+    return;
+  }
+
   let provider: ethers.JsonRpcProvider | null = null;
   
   try {
@@ -83,71 +90,71 @@ const updateState = async () => {
       provider
     );
 
-    if (initialBlockRef.current === 0) {
-      try {
-        const [currentBlock, targetBlock, blocksUntilDraw] = await Promise.all([
-          provider.getBlockNumber(),
-          contract.targetBlock(),
-          contract.getBlocksUntilDraw() 
-        ]);
-    
-        const deploymentBlock = Number(targetBlock) - Number(blocksUntilDraw);
-        initialBlockRef.current = deploymentBlock;
-        setInitialBlock(deploymentBlock);
-        console.log('Bloc de déploiement:', deploymentBlock);
-      } catch (e) {
-        console.error('Erreur lors de la récupération du bloc de déploiement:', e);
-      }
-    }
+    // D'abord récupérer le bloc courant
+    const current = await provider.getBlockNumber();
+    setCurrentBlock(current);
 
-    const [current, target, complete] = await Promise.all([
-      provider.getBlockNumber(),
-      contract.targetBlock(),
-      contract.isDrawingComplete()
-    ]);
-  
-      setCurrentBlock(current);
+    try {
+      // Essayer de récupérer le bloc cible et l'état du tirage
+      const [target, complete] = await Promise.all([
+        contract.targetBlock(),
+        contract.isDrawingComplete()
+      ]);
+
       setTargetBlock(Number(target));
-      if (current && target) {
-        const blocksRemaining = Math.max(0, Number(target) - current);
-        
-        if (blocksRemaining === 0 || complete) {
-          setEstimatedEndTime(null);
-          setSmoothSecondsLeft(0);
-        } else {
-          // Calcul basé sur les blocs uniquement
-          const totalSeconds = blocksRemaining * network.blockTime;
-          // Ne pas utiliser Date.now() pour éviter les décalages
-          setEstimatedEndTime(Date.now() + (Math.ceil(totalSeconds) * 1000));
-        }
-      }
       setIsComplete(complete);
 
-  
-      if (!complete && current >= Number(target) && !isExecutingRef.current && !hasTriedExecution) {
-        await executeDrawing();
-      }
-  
       if (complete) {
         const winnerIds = await contract.getWinnerIds();
         setWinners(winnerIds.map((id: bigint) => `301-${id.toString()}`));
+        setLoading(false);
+        return;
       }
-  
-      setLoading(false);
-    } catch (err) {
-      console.error('Error in updateState:', err);
-      setError("Erreur lors de la récupération des données");
-    } finally {
-      setLoading(false);
-      if (provider && 'destroy' in provider) {
-        try {
-          (provider as any).destroy();
-        } catch (e) {
-          console.warn('Error closing provider:', e);
-        }
+
+      // Initialisation du bloc initial si nécessaire
+      if (initialBlockRef.current === 0) {
+        const blocksUntilDraw = await contract.getBlocksUntilDraw();
+        const deploymentBlock = Number(target) - Number(blocksUntilDraw);
+        initialBlockRef.current = deploymentBlock;
+        setInitialBlock(deploymentBlock);
+        console.log('Bloc de déploiement:', deploymentBlock);
+      }
+
+      // Calcul du temps restant
+      const blocksRemaining = Math.max(0, Number(target) - current);
+      if (blocksRemaining === 0) {
+        setEstimatedEndTime(null);
+        setSmoothSecondsLeft(0);
+      } else {
+        const totalSeconds = blocksRemaining * network.blockTime;
+        setEstimatedEndTime(Date.now() + (Math.ceil(totalSeconds) * 1000));
+      }
+
+      // Vérifier si on doit exécuter le tirage
+      if (current >= Number(target) && !isExecutingRef.current && !hasTriedExecution) {
+        await executeDrawing();
+      }
+
+    } catch (contractError) {
+      // Si erreur de contrat, on continue avec le bloc courant
+      console.warn('Erreur contrat:', contractError);
+    }
+
+    setLoading(false);
+  } catch (err) {
+    console.error('Error in updateState:', err);
+    setError("Erreur lors de la récupération des données");
+  } finally {
+    setLoading(false);
+    if (provider && 'destroy' in provider) {
+      try {
+        (provider as any).destroy();
+      } catch (e) {
+        console.warn('Error closing provider:', e);
       }
     }
-  };
+  }
+};
 
   const formatTimeRemaining = (seconds: number) => {
     if (seconds <= 0) return "Tirage imminent";
@@ -182,9 +189,18 @@ const updateState = async () => {
     setError('');
     setHasTriedExecution(false);
     updateState();
-    const interval = setInterval(updateState, 6000);
+    
+    // Ne démarrer le polling que si le tirage n'est pas terminé
+    const interval = setInterval(() => {
+      if (isComplete) {
+        clearInterval(interval);
+        return;
+      }
+      updateState();
+    }, 6000);
+    
     return () => clearInterval(interval);
-  }, []);
+  }, [isComplete]); // Ajouter isComplete comme dépendance
 
   useEffect(() => {
     const targetProgress = calculateProgress(currentBlock, targetBlock, initialBlockRef.current);
