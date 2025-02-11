@@ -5,6 +5,7 @@ import { DrawingStatus } from '../components/raffle/DrawingStatus';
 import { WinnersList } from '../components/raffle/WinnersList';
 import { NetworkInfo } from '../components/raffle/NetworkInfo';
 import { ThemeToggle } from '../components/ThemeToggle';
+import GitHubForkButton from '@/components/common/GitHubForkButton';
 
 export default function Home() {
   const network = NETWORKS[DEFAULT_NETWORK];
@@ -26,6 +27,7 @@ export default function Home() {
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-100 dark:bg-gray-900 flex items-center justify-center">
+        <GitHubForkButton /> {/* Ajouter ici */}
         <div className="animate-spin rounded-full h-32 w-32 border-t-2 border-b-2 border-blue-500 dark:border-blue-400"></div>
       </div>
     );
@@ -33,6 +35,7 @@ export default function Home() {
 
   return (
     <div className="min-h-screen bg-gray-100 dark:bg-gray-900 flex flex-col justify-center px-4 sm:px-6 lg:px-8 transition-colors">
+      <GitHubForkButton />
       <ThemeToggle />
       <div className="max-w-3xl mx-auto flex-1 flex flex-col justify-center py-8">
       <div className="bg-white dark:bg-gray-800 shadow-lg rounded-lg overflow-hidden transition-colors my-6">
