@@ -2,6 +2,8 @@
 
 A decentralized and verifiable raffle system built on Moonbeam Network.
 
+📑 [Article](https://www.cyphertux.net/articles/en/projects/cryptotux-web3-raffle-solution-en) - 🟢 [Demo Live](https://cryptoxr2025.vercel.app/)
+
 ## Project Structure 📂
 
 ```bash
