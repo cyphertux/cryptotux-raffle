@@ -21,6 +21,7 @@ contract LocalVRFRaffle is ReentrancyGuard, Pausable, Ownable(msg.sender) {
     uint256 public constant MAX_PARTICIPANTS = 1000;
     uint256 public constant MIN_PARTICIPANTS = 3;
     uint256 private immutable BLOCKS_UNTIL_DRAW;
+    uint256 public immutable deploymentBlock;
 
     // Structures
     struct DrawingResult {
@@ -65,6 +66,7 @@ contract LocalVRFRaffle is ReentrancyGuard, Pausable, Ownable(msg.sender) {
         
         participantIds = _participantIds;
         BLOCKS_UNTIL_DRAW = _blocksUntilDraw;
+        deploymentBlock = block.number;
         targetBlock = block.number + _blocksUntilDraw;
         commitHash = _commitHash;
         authorizedDrawers[msg.sender] = true;

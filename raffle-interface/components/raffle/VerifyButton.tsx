@@ -41,42 +41,16 @@ export function VerifyButton({ winners, network }: VerifyButtonProps) {
       const contract = new Contract(network.contractAddress!, RAFFLE_ABI, provider);
       
       // Récupération des données de base
-      const [winnerIds, currentBlock, targetBlock, isComplete] = await Promise.all([
+      const [winnerIds, currentBlock, targetBlock, isComplete, contractDeploymentBlock] = await Promise.all([
         contract.getWinnerIds(),
         provider.getBlockNumber(),
         contract.targetBlock(),
-        contract.isDrawingComplete()
+        contract.isDrawingComplete(),
+        contract.deploymentBlock()
       ]);
 
-      // Récupération de l'événement DrawingInitiated avec une plage limitée
-        const drawingInitiatedFilter = contract.filters.DrawingInitiated();
-        let deploymentBlock: number;
-        try {
-        // On récupère d'abord le bloc actuel moins 10000 blocs
-        const fromBlock = Math.max(0, currentBlock - 10000);
-        const initiatedEvents = await contract.queryFilter(drawingInitiatedFilter, fromBlock, currentBlock);
-        
-        if (initiatedEvents.length === 0) {
-            // Si on ne trouve pas l'événement, on élargit la recherche
-            const fromBlock2 = Math.max(0, currentBlock - 50000);
-            const initiatedEvents2 = await contract.queryFilter(drawingInitiatedFilter, fromBlock2, currentBlock);
-            
-            if (initiatedEvents2.length === 0) {
-            console.log('Événement non trouvé');
-            deploymentBlock = Number(targetBlock) - 100; // Estimation par défaut
-            } else {
-            deploymentBlock = initiatedEvents2[0].blockNumber;
-            }
-        } else {
-            deploymentBlock = initiatedEvents[0].blockNumber;
-        }
-        } catch (e) {
-        console.log('Erreur lors de la récupération de l\'événement:', e);
-        deploymentBlock = Number(targetBlock) - 100; // Estimation par défaut
-        }
-
-        // Calcul de la durée prévue en blocs
-        const plannedDuration = Number(targetBlock) - deploymentBlock;
+      // Calcul de la durée prévue en blocs
+      const contractPlannedDuration = Number(targetBlock) - Number(contractDeploymentBlock);
 
       // Récupération des détails du tirage si terminé
       let drawingDetails: DrawingDetails = {};
@@ -135,8 +109,8 @@ export function VerifyButton({ winners, network }: VerifyButtonProps) {
         targetBlock: Number(targetBlock),
         reveal: drawingDetails.reveal,
         randomSeed: drawingDetails.randomSeed,
-        deploymentBlock,
-        plannedDuration
+        deploymentBlock: Number(contractDeploymentBlock),
+        plannedDuration: contractPlannedDuration
       });
       
       if (isValid) {
